@@ -14,17 +14,15 @@ import {
   serverTimestamp
 } from 'firebase/firestore'
 import { auth, googleProvider, db } from '../firebase'
+import type { UserRole, UserProfile } from '../types/portal'
 
-export type UserRole = 'user' | 'admin' | 'ceo' | 'engineer' | 'tech lead'
+export type { UserRole, UserProfile }
 
-export interface UserProfile {
-  uid: string
-  email: string
-  name: string
-  phoneNumber: string
-  role: UserRole
-  profileCompleted: boolean
-  createdAt?: any
+export const PRIMARY_SUPERADMIN_EMAIL = 'info@avassds.com'
+
+export function isSuperAdminEmail(email?: string | null): boolean {
+  if (!email) return false
+  return email.trim().toLowerCase() === PRIMARY_SUPERADMIN_EMAIL.toLowerCase()
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -36,7 +34,27 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => !!user.value)
   const isProfileComplete = computed(() => !!(profile.value && profile.value.profileCompleted))
-  const currentRole = computed<UserRole>(() => profile.value?.role || 'user')
+  const currentRole = computed<UserRole>(() => {
+    if (isSuperAdminEmail(user.value?.email) || isSuperAdminEmail(profile.value?.email)) {
+      return 'superadmin'
+    }
+    return profile.value?.role || 'client_project_reviewer'
+  })
+
+  // Permission helpers
+  const isSuperAdmin = computed(() => currentRole.value === 'superadmin')
+  const isProjectHead = computed(() => currentRole.value === 'project_head')
+  const isProjectManager = computed(() => currentRole.value === 'project_manager')
+  const isQualityControl = computed(() => currentRole.value === 'quality_control')
+  const isSteelDetailer = computed(() => currentRole.value === 'steel_detailer')
+  const isClientLead = computed(() => currentRole.value === 'client_project_lead')
+  const isClientReviewer = computed(() => currentRole.value === 'client_project_reviewer')
+
+  // Administrative authority (Superadmin, Project Head, PM can manage staff and project assignments)
+  const canManageStaff = computed(() => isSuperAdmin.value || isProjectHead.value || isProjectManager.value)
+  const canManageProjects = computed(() => isSuperAdmin.value || isProjectHead.value || isProjectManager.value)
+  const isInternalStaff = computed(() => ['superadmin', 'project_head', 'project_manager', 'quality_control', 'steel_detailer'].includes(currentRole.value))
+  const isClientStaff = computed(() => ['client_project_lead', 'client_project_reviewer'].includes(currentRole.value))
 
   // Listen to Firebase Auth state
   function initAuth(): Promise<void> {
@@ -60,9 +78,40 @@ export const useAuthStore = defineStore('auth', () => {
       const userRef = doc(db, 'users', uid)
       const snap = await getDoc(userRef)
       if (snap.exists()) {
-        profile.value = snap.data() as UserProfile
+        const data = snap.data() as UserProfile
+        if (isSuperAdminEmail(user.value?.email) || isSuperAdminEmail(data.email)) {
+          if (data.role !== 'superadmin') {
+            data.role = 'superadmin'
+            try {
+              await updateDoc(userRef, { role: 'superadmin' })
+            } catch (updateErr) {
+              console.warn('Auto-promote superadmin Firestore warning:', updateErr)
+            }
+          }
+        }
+        profile.value = data
       } else {
-        profile.value = null
+        if (user.value) {
+          const isSuper = isSuperAdminEmail(user.value.email)
+          const newProfile: UserProfile = {
+            uid: user.value.uid,
+            email: user.value.email || '',
+            name: user.value.displayName || user.value.email?.split('@')[0] || (isSuper ? 'Super Administrator' : 'Client Engineer'),
+            phoneNumber: user.value.phoneNumber || '',
+            role: isSuper ? 'superadmin' : 'client_project_reviewer',
+            profileCompleted: true,
+            assignedProjectIds: [],
+            createdAt: serverTimestamp()
+          }
+          try {
+            await setDoc(userRef, newProfile)
+          } catch (createErr) {
+            console.warn('Auto-provision user profile Firestore warning:', createErr)
+          }
+          profile.value = newProfile
+        } else {
+          profile.value = null
+        }
       }
     } catch (e: any) {
       console.error('Error fetching user profile:', e)
@@ -76,7 +125,41 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const result = await signInWithPopup(auth, googleProvider)
       user.value = result.user
-      await fetchUserProfile(result.user.uid)
+
+      // Check if user profile document exists in Firestore
+      const userRef = doc(db, 'users', result.user.uid)
+      const snap = await getDoc(userRef)
+
+      if (snap.exists()) {
+        const data = snap.data() as UserProfile
+        if (isSuperAdminEmail(result.user.email) || isSuperAdminEmail(data.email)) {
+          if (data.role !== 'superadmin') {
+            data.role = 'superadmin'
+            try {
+              await updateDoc(userRef, { role: 'superadmin' })
+            } catch (e) {
+              console.warn('Could not persist superadmin role:', e)
+            }
+          }
+        }
+        profile.value = data
+      } else {
+        const isSuper = isSuperAdminEmail(result.user.email)
+        // Automatically provision baseline profile for new Google users
+        const newProfile: UserProfile = {
+          uid: result.user.uid,
+          email: result.user.email || '',
+          name: result.user.displayName || result.user.email?.split('@')[0] || (isSuper ? 'Super Administrator' : 'Client Engineer'),
+          phoneNumber: result.user.phoneNumber || '',
+          role: isSuper ? 'superadmin' : 'client_project_reviewer',
+          profileCompleted: true,
+          assignedProjectIds: [],
+          createdAt: serverTimestamp()
+        }
+        await setDoc(userRef, newProfile)
+        profile.value = newProfile
+      }
+
       return result.user
     } catch (e: any) {
       console.error('Google Sign-In Error:', e)
@@ -92,13 +175,15 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = ''
     loading.value = true
 
+    const isSuper = isSuperAdminEmail(user.value.email)
     const newProfile: UserProfile = {
       uid: user.value.uid,
       email: user.value.email || '',
       name: name.trim(),
       phoneNumber: phoneNumber.trim(),
-      role: 'user', // Default role for all logged-in users
+      role: isSuper ? 'superadmin' : (profile.value?.role || 'client_project_reviewer'),
       profileCompleted: true,
+      assignedProjectIds: profile.value?.assignedProjectIds || [],
       createdAt: serverTimestamp()
     }
 
@@ -112,19 +197,6 @@ export const useAuthStore = defineStore('auth', () => {
       throw e
     } finally {
       loading.value = false
-    }
-  }
-
-  async function updateUserRole(newRole: UserRole) {
-    if (!user.value || !profile.value) return
-    try {
-      const userRef = doc(db, 'users', user.value.uid)
-      await updateDoc(userRef, { role: newRole })
-      profile.value.role = newRole
-    } catch (e: any) {
-      console.error('Error updating role:', e)
-      // Fallback local update if offline or rule restricted
-      if (profile.value) profile.value.role = newRole
     }
   }
 
@@ -150,10 +222,20 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     isProfileComplete,
     currentRole,
+    isSuperAdmin,
+    isProjectHead,
+    isProjectManager,
+    isQualityControl,
+    isSteelDetailer,
+    isClientLead,
+    isClientReviewer,
+    canManageStaff,
+    canManageProjects,
+    isInternalStaff,
+    isClientStaff,
     initAuth,
     loginWithGoogle,
     saveUserProfile,
-    updateUserRole,
     logout
   }
 })

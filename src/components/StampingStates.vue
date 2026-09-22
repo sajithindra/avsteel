@@ -61,7 +61,9 @@ onUnmounted(() => {
             class="search-input"
             placeholder="Search state name..."
           />
-          <button v-if="searchQuery" class="clear-search-btn" @click="searchQuery = ''">✕</button>
+          <button v-if="searchQuery" class="clear-search-btn" @click="searchQuery = ''" aria-label="Clear search">
+            <span class="material-symbols-outlined icon-xs">close</span>
+          </button>
         </div>
 
         <div class="filter-buttons">
@@ -116,7 +118,9 @@ onUnmounted(() => {
           <div class="modal-content">
             <div class="modal-header">
               <h3>{{ selectedState.name }} Engineering License</h3>
-              <button class="close-btn" @click="closeModal" aria-label="Close modal">✕</button>
+              <button class="close-btn" @click="closeModal" aria-label="Close modal">
+                <span class="material-symbols-outlined icon-sm">close</span>
+              </button>
             </div>
             <div class="modal-body">
               <div class="modal-badge-row">

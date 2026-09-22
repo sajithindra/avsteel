@@ -41,6 +41,9 @@ import { COMPANY_INFO } from '../data/companyData'
 
       <div class="footer-bottom">
         <p>&copy; {{ new Date().getFullYear() }} {{ COMPANY_INFO.name }}. All Rights Reserved.</p>
+        <p class="footer-credits">
+          Imagined by <span class="credit-highlight">Sajithindra</span> &bull; Developed by <span class="credit-highlight">Survmonx LLP</span>
+        </p>
       </div>
     </div>
   </footer>
@@ -138,6 +141,17 @@ import { COMPANY_INFO } from '../data/companyData'
   text-align: center;
   font-size: 0.82rem;
   color: #94a3b8;
+}
+
+.footer-credits {
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  color: #cbd5e1;
+}
+
+.credit-highlight {
+  color: #ffffff;
+  font-weight: 600;
 }
 
 @media (max-width: 768px) {

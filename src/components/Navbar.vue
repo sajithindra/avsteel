@@ -1,12 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { RouterLink } from 'vue-router'
 import { COMPANY_INFO } from '../data/companyData'
 import { useIntersectionObserver } from '../composables/useIntersectionObserver'
-import { useAuthStore } from '../stores/auth'
-
-const router = useRouter()
-const authStore = useAuthStore()
 
 const isMobileMenuOpen = ref(false)
 const isScrolled = ref(false)
@@ -25,11 +21,6 @@ const navLinks = [
 
 const handleScroll = () => {
   isScrolled.value = window.scrollY > 20
-}
-
-const handleSignOut = async () => {
-  await authStore.logout()
-  router.push('/signin')
 }
 
 const handleKeydown = (e: KeyboardEvent) => {
@@ -78,27 +69,16 @@ onUnmounted(() => {
             </li>
           </ul>
 
-          <!-- Action CTA with Sign In Link & Primary CTA -->
+          <!-- Action CTA with Sign In Link & Primary CTA (Single State) -->
           <div class="nav-actions">
-            <template v-if="!authStore.isAuthenticated">
-              <router-link to="/signin" class="signin-text-link desktop-only">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-                </svg>
-                <span>Sign In</span>
-              </router-link>
-            </template>
-            <template v-else>
-              <div class="user-badge-menu desktop-only">
-                <router-link to="/dashboard" class="user-avatar-link" title="Open Dashboard">
-                  <span class="user-avatar">{{ authStore.profile?.name?.charAt(0)?.toUpperCase() || authStore.user?.email?.charAt(0)?.toUpperCase() || 'U' }}</span>
-                  <span class="dashboard-nav-text">Dashboard</span>
-                </router-link>
-                <button class="signout-link" @click="handleSignOut">Sign Out</button>
-              </div>
-            </template>
+            <router-link to="/signin" class="signin-text-link desktop-only">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+              <span>Sign In</span>
+            </router-link>
 
-            <a href="#contact" class="btn btn-accent btn-sm desktop-only">Request Quote</a>
+            <a href="/#contact" class="btn btn-accent btn-sm desktop-only">Request Quote</a>
             
             <button
               class="mobile-toggle"
@@ -133,15 +113,11 @@ onUnmounted(() => {
           </ul>
 
           <div class="mobile-actions-box">
-            <a href="#contact" class="btn btn-accent w-full" @click="isMobileMenuOpen = false">
+            <a href="/#contact" class="btn btn-accent w-full" @click="isMobileMenuOpen = false">
               Request Quote
             </a>
-
-            <router-link v-if="!authStore.isAuthenticated" to="/signin" class="btn btn-outline w-full" @click="isMobileMenuOpen = false">
-              Client Portal Sign In
-            </router-link>
-            <router-link v-else to="/dashboard" class="btn btn-outline w-full" @click="isMobileMenuOpen = false">
-              Dashboard ({{ authStore.profile?.name || authStore.user?.email }})
+            <router-link to="/signin" class="btn btn-outline w-full" @click="isMobileMenuOpen = false">
+              Sign In
             </router-link>
           </div>
         </div>
@@ -286,68 +262,13 @@ onUnmounted(() => {
   padding: 0.45rem 0.75rem;
   border-radius: 6px;
   cursor: pointer;
+  text-decoration: none;
   transition: color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .signin-text-link:hover {
   color: var(--c-royal-blue);
   background-color: var(--c-royal-blue-light);
-}
-
-.user-badge-menu {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.user-avatar-link {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  text-decoration: none;
-  color: var(--c-blue-dark);
-  font-weight: 600;
-  font-size: 0.88rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 6px;
-  transition: background-color var(--transition-fast);
-}
-
-.user-avatar-link:hover {
-  background-color: var(--c-royal-blue-light);
-  color: var(--c-royal-blue);
-}
-
-.dashboard-nav-text {
-  font-weight: 600;
-}
-
-.signout-link {
-  background: transparent;
-  border: none;
-  color: var(--c-text-muted);
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0.2rem 0.4rem;
-  border-radius: 4px;
-}
-
-.signout-link:hover {
-  color: #dc2626;
-}
-
-.user-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--c-royal-blue);
-  color: #ffffff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 0.85rem;
 }
 
 .mobile-toggle {

@@ -23,7 +23,7 @@ import { PAIN_POINTS_CONTENT, WHY_CHOOSE_FABRICATORS, VALUE_PROPOSITION, COMPANY
 
           <ul class="comparison-list">
             <li v-for="(item, idx) in PAIN_POINTS_CONTENT.checklist" :key="idx" class="comparison-item challenge-item">
-              <span class="status-icon warning-icon">⚠️</span>
+              <span class="material-symbols-outlined status-icon warning-icon text-warning">warning</span>
               <span class="item-text">{{ item }}</span>
             </li>
           </ul>
@@ -50,7 +50,7 @@ import { PAIN_POINTS_CONTENT, WHY_CHOOSE_FABRICATORS, VALUE_PROPOSITION, COMPANY
 
           <ul class="comparison-list">
             <li v-for="(item, idx) in WHY_CHOOSE_FABRICATORS.solutions" :key="idx" class="comparison-item solution-item">
-              <span class="status-icon success-icon">✓</span>
+              <span class="material-symbols-outlined status-icon success-icon text-success">check_circle</span>
               <span class="item-text">{{ item }}</span>
             </li>
           </ul>

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 
 // Profile completion form state
@@ -25,10 +26,15 @@ watch(
   { immediate: true }
 )
 
+const getTargetRedirect = () => {
+  const q = route.query.redirect as string
+  return q && q.startsWith('/') ? q : '/dashboard'
+}
+
 // Redirect if already authenticated and profile completed
 const checkRedirect = () => {
   if (authStore.isAuthenticated && authStore.isProfileComplete) {
-    router.push('/dashboard')
+    router.push(getTargetRedirect())
   }
 }
 
@@ -47,7 +53,7 @@ const handleGoogleSignIn = async () => {
   try {
     const user = await authStore.loginWithGoogle()
     if (user && authStore.isProfileComplete) {
-      router.push('/dashboard')
+      router.push(getTargetRedirect())
     }
   } catch (err: any) {
     // Error is handled in authStore
@@ -86,7 +92,7 @@ const handleProfileSubmit = async () => {
   isSubmitting.value = true
   try {
     await authStore.saveUserProfile(name.value, phoneNumber.value)
-    router.push('/dashboard')
+    router.push(getTargetRedirect())
   } catch (err: any) {
     submitError.value = err.message || 'Failed to save profile. Please try again.'
   } finally {
@@ -97,15 +103,23 @@ const handleProfileSubmit = async () => {
 
 <template>
   <div class="signin-page-container">
-    <div class="signin-card ava-card">
-      <!-- Top Branding Header -->
-      <div class="signin-brand-header">
-        <div class="logo-box">AVA</div>
-        <div class="brand-info">
-          <h2>AVA Steel Portal</h2>
-          <span class="badge">AEC Engineering</span>
-        </div>
+    <div class="signin-wrapper">
+      <div class="signin-top-nav">
+        <router-link to="/" class="back-home-btn" title="Return to homepage">
+          <span class="material-symbols-outlined icon-sm">arrow_back</span>
+          <span>Back to Home</span>
+        </router-link>
       </div>
+
+      <div class="signin-card ava-card">
+        <!-- Top Branding Header -->
+        <div class="signin-brand-header">
+          <div class="logo-box">AVA</div>
+          <div class="brand-info">
+            <h2>AVA Steel Portal</h2>
+            <span class="badge">AEC Engineering</span>
+          </div>
+        </div>
 
       <!-- State 1: Google Login ONLY -->
       <template v-if="!authStore.isAuthenticated">
@@ -202,6 +216,7 @@ const handleProfileSubmit = async () => {
           </form>
         </div>
       </template>
+      </div>
     </div>
   </div>
 </template>
@@ -214,6 +229,43 @@ const handleProfileSubmit = async () => {
   justify-content: center;
   padding: 3rem 1.5rem;
   background-color: var(--c-bg);
+}
+
+.signin-wrapper {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.signin-top-nav {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.back-home-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--c-royal-blue);
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-decoration: none;
+  padding: 0.45rem 0.85rem;
+  border-radius: 6px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  box-shadow: 0 2px 6px rgba(15, 43, 92, 0.04);
+  transition: all var(--transition-fast);
+}
+
+.back-home-btn:hover {
+  background: var(--c-royal-blue-light);
+  border-color: var(--c-royal-blue);
+  color: var(--c-royal-blue);
+  transform: translateX(-3px);
 }
 
 .signin-card {

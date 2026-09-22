@@ -1,11 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
-import PortfolioView from '../views/PortfolioView.vue'
-import TermsView from '../views/TermsView.vue'
-import PrivacyView from '../views/PrivacyView.vue'
-import SignInView from '../views/SignInView.vue'
-import DashboardView from '../views/DashboardView.vue'
 import { useAuthStore } from '../stores/auth'
+
+const HomeView = () => import('../views/HomeView.vue')
+const PortfolioView = () => import('../views/PortfolioView.vue')
+const TermsView = () => import('../views/TermsView.vue')
+const PrivacyView = () => import('../views/PrivacyView.vue')
+const SignInView = () => import('../views/SignInView.vue')
+const DashboardView = () => import('../views/DashboardView.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -40,6 +41,34 @@ const router = createRouter({
       name: 'dashboard',
       component: DashboardView,
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/dashboard/projects',
+      name: 'dashboard-projects',
+      component: DashboardView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/dashboard/project/:projectId',
+      name: 'project-detail',
+      component: DashboardView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/dashboard/staff',
+      name: 'dashboard-staff',
+      component: DashboardView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/dashboard/customers',
+      name: 'dashboard-customers',
+      component: DashboardView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/dashboard/profile',
+      redirect: '/dashboard'
     }
   ],
   scrollBehavior(to, from, savedPosition) {
@@ -57,7 +86,7 @@ const router = createRouter({
 })
 
 // Navigation Guard
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to) => {
   const authStore = useAuthStore()
 
   if (!authStore.isInitialized) {
@@ -67,12 +96,21 @@ router.beforeEach(async (to, from, next) => {
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
 
   if (requiresAuth && !authStore.isAuthenticated) {
-    next('/signin')
-  } else if (to.path === '/signin' && authStore.isAuthenticated && authStore.isProfileComplete) {
-    next('/dashboard')
-  } else {
-    next()
+    return { path: '/signin', query: { redirect: to.fullPath } }
   }
+
+  // After login, redirect from signin or landing to dashboard or intended redirect target
+  if (authStore.isAuthenticated && authStore.isProfileComplete) {
+    if (to.path === '/signin') {
+      const redirect = (to.query.redirect as string) || '/dashboard'
+      return redirect
+    }
+    if (to.path === '/') {
+      return '/dashboard'
+    }
+  }
+
+  return true
 })
 
 export default router

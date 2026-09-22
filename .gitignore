@@ -51,5 +51,7 @@ firebase*
 .firebase*
 firestore*
 .firestore*
+storage*
+.storage*
 
 

@@ -43,7 +43,7 @@ const selectUsp = (id: number) => {
                 <span class="value-head">Direct Business Impact:</span>
                 <ul class="value-bullets">
                   <li v-for="(val, idx) in activeUsp.valuePoints" :key="idx" class="bullet-item">
-                    <span class="check-icon">✓</span>
+                    <span class="material-symbols-outlined check-icon text-success icon-sm">check</span>
                     <span>{{ val }}</span>
                   </li>
                 </ul>

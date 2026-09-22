@@ -16,7 +16,7 @@ import { COMPANY_INFO } from '../data/companyData'
             :key="idx"
             class="trust-card-item"
           >
-            <span class="check-badge">✔</span>
+            <span class="material-symbols-outlined check-badge text-success icon-sm">check</span>
             <span class="trust-item-text">{{ item }}</span>
           </div>
         </div>

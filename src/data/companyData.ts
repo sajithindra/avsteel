@@ -57,6 +57,9 @@ export const COMPANY_INFO = {
   address: 'No. 36/1878, 2nd Floor, Raymond Building, Kuruppam Road, Thrissur-680001, Kerala, India',
   udyam: 'UDYAM-KL-13-0094321',
   gst: '32THMPS4540H1ZQ',
+  cinLlpin: 'LLPIN: AAY-9821',
+  complaintsEmail: 'complaints@avassds.com',
+  grievanceOfficer: 'Rosdal K S (Compliance & Grievance Officer)',
   website: 'www.avassds.com',
   email: 'info@avassds.com',
   salesEmail: 'sales@avassds.com',
@@ -369,38 +372,300 @@ export const WORK_PROCESS_STEPS = [
   }
 ]
 
-export const TERMS_AND_CONDITIONS = [
-  { num: 1, title: 'Project Documentation', content: 'The client shall provide all necessary project information before detailing work begins... AVA Structural Steel Detailing Services shall not be responsible for delays or additional costs resulting from incomplete, incorrect, or late project information.' },
-  { num: 2, title: 'Scope of Work', content: 'Our scope of work is limited to the services specifically agreed upon in the proposal or purchase order. Any additional work requested after project commencement may be treated as additional services and quoted separately.' },
-  { num: 3, title: 'Project Revisions', content: 'The quoted price includes revisions resulting from our detailing errors at no additional cost. Revisions caused by design changes, architectural changes, engineer revisions, or client modifications after detailing has commenced may be subject to additional charges.' },
-  { num: 4, title: 'Drawing Approval', content: 'All shop and erection drawings should be reviewed and approved by the client and the Engineer of Record before fabrication. Final responsibility for design approval remains with the project engineer and client.' },
-  { num: 5, title: 'Quality Assurance', content: 'Every drawing undergoes internal QA/QC before submission. While every reasonable effort is made to ensure accuracy, the client is responsible for reviewing the drawings before fabrication.' },
-  { num: 6, title: 'Project Communication', content: 'Project-related communication should be made through the designated project coordinator or authorized representatives. Prompt responses to RFIs and approval comments help maintain the agreed project schedule.' },
-  { num: 7, title: 'Project Schedule', content: 'Delivery schedules are based on the information available at the time of project commencement and may be adjusted in cases of late client responses, design revisions, missing info, or force majeure events.' },
-  { num: 8, title: 'Confidentiality', content: 'All project documents, models, drawings, specifications, and related information received from the client shall be treated as confidential.' },
-  { num: 9, title: 'Intellectual Property', content: 'All project documents provided by the client remain the property of the client. AVA retains ownership of its internal detailing procedures, templates, quality-control methods, project management tools, and proprietary software.' },
-  { num: 10, title: 'Payment Terms', content: 'Payment terms shall be as agreed in the proposal, quotation, purchase order, or service agreement. Invoices are issued according to agreed project milestones.' },
-  { num: 11, title: 'Suspension of Services', content: 'AVA reserves the right to suspend ongoing work if payments become significantly overdue. Project schedules may be revised once work resumes.' },
-  { num: 12, title: 'Delivery of Final Files', content: 'Final deliverables, including shop drawings, erection drawings, CNC files, reports, and other agreed outputs, will be issued in accordance with the agreed project scope.' },
-  { num: 13, title: 'Limitation of Liability', content: 'Our liability is limited to correcting errors within our scope of work. We are not responsible for losses arising from design errors, incomplete project information, or fabrication performed without approved drawings.' },
-  { num: 14, title: 'Governing Agreement', content: 'Any project-specific proposal, quotation, purchase order, or signed service agreement shall take precedence over these general Terms & Conditions where differences exist.' }
-]
+export const TERMS_AND_CONDITIONS = {
+  effectiveDate: '02 August 2026',
+  sections: [
+    {
+      num: 1,
+      title: 'Company Information',
+      content: 'AVA Structural Steel Detailing Services LLP provides professional structural steel detailing, BIM modeling, shop drawings, erection drawings, miscellaneous steel detailing, QA/QC checking, estimation, material take-off services, and technical training.'
+    },
+    {
+      num: 2,
+      title: 'Scope of Services',
+      content: 'Our services include, but are not limited to:',
+      items: [
+        'Structural Steel Detailing',
+        'Miscellaneous Steel Detailing',
+        'BIM Modeling',
+        'Shop & Erection Drawings',
+        'Connection Detailing',
+        'CNC/DSTV/DXF File Generation',
+        'Material Take-Off',
+        'QA/QC Review',
+        'Training & Consulting'
+      ],
+      footer: 'Each project shall be governed by the agreed quotation, purchase order, work order, or service agreement.'
+    },
+    {
+      num: 3,
+      title: 'Applicable Engineering Standards',
+      content: 'Unless otherwise agreed in writing, detailing shall be prepared in accordance with applicable project specifications and relevant industry standards, including where applicable:',
+      items: [
+        'AISC Steel Construction Manual',
+        'AISC Code of Standard Practice',
+        'OSHA Regulations',
+        'AWS D1.1 Structural Welding Code',
+        'RCSC Specification for Structural Joints',
+        'ASTM Material Specifications',
+        'SDI Standards',
+        'SJI Standards',
+        'NISD Guidelines',
+        'Project-specific client standards'
+      ],
+      footer: 'The governing code shall always be the one specified in the contract documents.'
+    },
+    {
+      num: 4,
+      title: 'Client Responsibilities',
+      content: 'The Client shall provide:',
+      items: [
+        'IFC Drawings',
+        'Structural Calculations',
+        'Design Revisions',
+        'Specifications',
+        'RFI Responses',
+        'Approval Comments',
+        'Timely Communication'
+      ],
+      footer: 'Delays in receiving required information may affect delivery schedules.'
+    },
+    {
+      num: 5,
+      title: 'Intellectual Property',
+      content: 'All drawings, models, templates, software workflows, documents, website content, logos, training materials, and other intellectual property remain the exclusive property of AVA unless otherwise agreed in writing. No material may be copied, reproduced, distributed, or modified without prior written permission.'
+    },
+    {
+      num: 6,
+      title: 'Confidentiality',
+      content: 'AVA maintains strict confidentiality regarding all client information, drawings, project data, and technical documents. Client information shall not be disclosed except:',
+      items: [
+        'with written consent;',
+        'where required by law; or',
+        'for approved subcontractors working under confidentiality obligations.'
+      ]
+    },
+    {
+      num: 7,
+      title: 'Project Revisions',
+      content: 'Revisions arising from client comments after submission shall be completed in accordance with the agreed project scope. Major design changes, scope increases, or redesign work may result in additional charges and revised delivery schedules.'
+    },
+    {
+      num: 8,
+      title: 'Quality Assurance',
+      content: 'AVA follows internal QA/QC procedures before project delivery. However, the client remains responsible for final engineering approval and construction verification.'
+    },
+    {
+      num: 9,
+      title: 'Payment Terms',
+      content: 'Payment terms shall be as stated in the quotation, invoice, purchase order, or signed agreement. Late payments may result in:',
+      items: [
+        'Suspension of work;',
+        'Delay in project delivery; and',
+        'Additional charges where permitted by applicable law.'
+      ]
+    },
+    {
+      num: 10,
+      title: 'Delivery Schedule',
+      content: 'Estimated completion dates are provided based on available project information. AVA shall not be responsible for delays caused by:',
+      items: [
+        'Design revisions;',
+        'Client delays;',
+        'Late approvals;',
+        'Force majeure events;',
+        'Third-party software failures.'
+      ]
+    },
+    {
+      num: 11,
+      title: 'Website Usage',
+      content: 'Visitors shall not:',
+      items: [
+        'Copy website content.',
+        'Reverse engineer downloadable materials.',
+        'Attempt unauthorized access.',
+        'Upload malicious software.',
+        'Misrepresent AVA or its services.'
+      ]
+    },
+    {
+      num: 12,
+      title: 'Disclaimer',
+      content: 'Information published on this website is provided for general information only and does not constitute engineering certification, legal advice, or construction approval. Project-specific engineering decisions must always be verified by the responsible Engineer of Record (EOR).'
+    },
+    {
+      num: 13,
+      title: 'Limitation of Liability',
+      content: 'To the maximum extent permitted by applicable law, AVA shall not be liable for any indirect, incidental, consequential, special, or punitive damages, including loss of profits, business interruption, or project delays arising from the use of this website or our services.'
+    },
+    {
+      num: 14,
+      title: 'Force Majeure',
+      content: 'AVA shall not be liable for delays caused by events beyond reasonable control, including natural disasters, power failures, internet outages, cyber-attacks, government actions, pandemics, labor disputes, or similar events.'
+    },
+    {
+      num: 15,
+      title: 'Privacy',
+      content: 'Personal information submitted through our website shall be handled in accordance with our Privacy Policy.'
+    },
+    {
+      num: 16,
+      title: 'Third-Party Software',
+      content: 'Project deliverables may utilize industry software including SDS/2, AutoCAD, IFC, BIM platforms, or other licensed software. All trademarks remain the property of their respective owners.'
+    },
+    {
+      num: 17,
+      title: 'Governing Law',
+      content: 'These Terms & Conditions shall be governed by the laws of India. Subject to applicable law, courts having jurisdiction in Thrissur, Kerala, India shall have exclusive jurisdiction over disputes arising from these Terms.'
+    },
+    {
+      num: 18,
+      title: 'Amendments',
+      content: 'AVA reserves the right to modify these Terms & Conditions at any time without prior notice. Continued use of the website constitutes acceptance of the revised Terms.'
+    },
+    {
+      num: 19,
+      title: 'Contact',
+      content: 'AVA Structural Steel Detailing Services LLP | Thrissur, Kerala, India | Email: info@avassds.com | Website: www.avassds.com'
+    }
+  ]
+}
 
 export const PRIVACY_POLICY = {
-  effectiveDate: 'July 14, 2026',
+  effectiveDate: '02 August 2026',
+  lastUpdated: '02 August 2026',
+  intro: 'AVS Structural Steel Detailing Service ("AVS", "we", "our", or "us") respects your privacy and is committed to protecting the personal information you provide when using our website and services. This Privacy Policy explains how we collect, use, store, disclose, and safeguard your information. By accessing or using our website, you agree to the practices described in this Privacy Policy.',
   sections: [
-    { title: '1. Information We Collect', content: 'Personal Information (Name, Company, Job title, Email, Phone, Location) and Project Information (Structural drawings, Specifications, RFIs, Revisions).' },
-    { title: '2. How We Use Your Information', content: 'Respond to inquiries, prepare proposals, execute detailing projects, communicate updates, and comply with obligations. We do not sell or rent personal information.' },
-    { title: '3. Confidentiality of Project Documents', content: 'All project drawings and documents are strictly confidential and accessed only by authorized engineering personnel.' },
-    { title: '4. Data Security', content: 'Administrative, technical, and organizational measures including secure storage, access control, password protection, and backups.' },
-    { title: '5. Cookies', content: 'Used to remember user preferences and analyze visitor traffic to improve functionality.' },
-    { title: '6. Third-Party Services', content: 'Third-party services (Google Maps, Google Analytics, LinkedIn) operate under their own privacy policies.' },
-    { title: '7. Data Retention', content: 'Information is retained only as necessary to complete requested services and maintain business records.' },
-    { title: '8. Your Rights', content: 'You may request access, correction, or deletion of your personal information.' },
-    { title: '9. Children’s Privacy', content: 'Our services are intended for business and professional use.' },
-    { title: '10. Policy Updates', content: 'Updates are posted on this page with the effective date.' },
-    { title: '11. Contact Information', content: 'AVA Structural Steel Detailing Services LLP | Email: info@avassds.com | Phone: +91 80891 42578' }
-  ]
+    {
+      num: 1,
+      title: 'Information We Collect',
+      content: 'We may collect the following information:',
+      items: [
+        'Name',
+        'Company Name',
+        'Email Address',
+        'Phone Number',
+        'Postal Address',
+        'Country and Location',
+        'Project Information',
+        'Billing Information',
+        'Website Usage Data',
+        'IP Address',
+        'Browser and Device Information',
+        'Cookies and Analytics Data'
+      ]
+    },
+    {
+      num: 2,
+      title: 'How We Use Your Information',
+      content: 'Your information may be used to:',
+      items: [
+        'Respond to enquiries.',
+        'Prepare quotations and proposals.',
+        'Deliver structural steel detailing services.',
+        'Communicate project updates.',
+        'Process invoices and payments.',
+        'Improve our website and services.',
+        'Comply with legal and regulatory obligations.',
+        'Protect our business against fraud and unauthorized access.'
+      ]
+    },
+    {
+      num: 3,
+      title: 'Confidentiality of Engineering Data',
+      content: 'Engineering drawings, BIM models, IFC files, fabrication drawings, shop drawings, erection drawings, RFIs, calculations, specifications, and related project documents submitted by clients shall be treated as confidential. Such information will not be disclosed except:',
+      items: [
+        'with the client\'s written authorization;',
+        'where required by law; or',
+        'to authorized subcontractors or consultants who are bound by confidentiality obligations.'
+      ]
+    },
+    {
+      num: 4,
+      title: 'Cookies',
+      content: 'Our website may use cookies and similar technologies to:',
+      items: [
+        'Improve website functionality.',
+        'Remember user preferences.',
+        'Measure website performance.',
+        'Analyze visitor traffic.'
+      ],
+      footer: 'Users may disable cookies through their browser settings.'
+    },
+    {
+      num: 5,
+      title: 'Data Security',
+      content: 'We implement reasonable administrative, technical, and physical safeguards to protect personal information and confidential project data from unauthorized access, disclosure, alteration, or destruction. Although we strive to use commercially acceptable means to protect your information, no method of electronic transmission or storage is completely secure.'
+    },
+    {
+      num: 6,
+      title: 'Data Retention',
+      content: 'We retain personal information only for as long as necessary to:',
+      items: [
+        'Provide our services;',
+        'Fulfil contractual obligations;',
+        'Meet legal, accounting, and taxation requirements; and',
+        'Resolve disputes and enforce our agreements.'
+      ]
+    },
+    {
+      num: 7,
+      title: 'Third-Party Services',
+      content: 'We may engage trusted third-party service providers for hosting, email, analytics, cloud storage, payment processing, and other business operations. Such providers are required to maintain appropriate confidentiality and security standards.'
+    },
+    {
+      num: 8,
+      title: 'International Data Transfers',
+      content: 'Where projects involve international clients, information may be transferred across jurisdictions using appropriate contractual and technical safeguards, subject to applicable laws.'
+    },
+    {
+      num: 9,
+      title: 'Your Rights',
+      content: 'Subject to applicable law, you may request to:',
+      items: [
+        'Access your personal information.',
+        'Correct inaccurate information.',
+        'Update your information.',
+        'Request deletion of your personal information.',
+        'Withdraw consent where applicable.',
+        'Raise concerns regarding data processing.'
+      ],
+      footer: 'Requests may be submitted using the contact details below.'
+    },
+    {
+      num: 10,
+      title: 'Third-Party Websites',
+      content: 'Our website may contain links to third-party websites. We are not responsible for the privacy practices or content of those websites.'
+    },
+    {
+      num: 11,
+      title: 'Changes to this Privacy Policy',
+      content: 'We reserve the right to amend this Privacy Policy at any time. Any changes will be posted on this page together with the revised Effective Date.'
+    },
+    {
+      num: 12,
+      title: 'Contact Us',
+      content: 'AVS Structural Steel Detailing Service | Thrissur, Kerala, India | Email: info@avassds.com | Website: www.avassds.com'
+    }
+  ],
+  legalRefs: {
+    title: 'Applicable Laws and Legal References',
+    intro: 'This Privacy Policy is prepared with reference to applicable laws and internationally recognized privacy principles, including:',
+    jurisdictions: [
+      {
+        name: 'India',
+        laws: [
+          'Digital Personal Data Protection Act, 2023',
+          'Information Technology Act, 2000',
+          'Information Technology (Reasonable Security Practices and Procedures and Sensitive Personal Data or Information) Rules, 2011',
+          'Indian Contract Act, 1872',
+          'Copyright Act, 1957 (where applicable)'
+        ]
+      }
+    ],
+    footer: 'Where required by law, AVS Structural Steel Detailing Service will comply with the applicable data protection and privacy regulations of the relevant jurisdiction.'
+  }
 }
 
 export const CORE_TEAM: TeamMember[] = [

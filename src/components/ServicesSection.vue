@@ -137,7 +137,8 @@ onUnmounted(() => {
                 <h4>Deliverables</h4>
                 <ul class="clean-list">
                   <li v-for="(deliv, idx) in currentService.deliverables" :key="idx" class="list-item">
-                    <span class="check-icon">✓</span> {{ deliv }}
+                    <span class="material-symbols-outlined check-icon text-success icon-xs">check</span>
+                    <span>{{ deliv }}</span>
                   </li>
                 </ul>
               </div>

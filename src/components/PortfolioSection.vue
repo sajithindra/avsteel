@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import '@google/model-viewer'
 import { PORTFOLIO_MODELS, type PortfolioModelItem } from '../data/portfolioData'
 
 const activeFilter = ref<'ALL' | 'SDS2'>('ALL')
@@ -117,7 +116,9 @@ const closeFullscreen = () => {
                 <span class="hud-tag">{{ activeFullscreenModel.software }}</span>
                 <h3 class="hud-title">{{ activeFullscreenModel.title }}</h3>
               </div>
-              <button class="hud-close-btn" @click="closeFullscreen" aria-label="Close Fullscreen View">✕</button>
+              <button class="hud-close-btn" @click="closeFullscreen" aria-label="Close Fullscreen View">
+                <span class="material-symbols-outlined icon-sm">close</span>
+              </button>
             </div>
 
             <!-- Dedicated High-Res 3D Viewport -->

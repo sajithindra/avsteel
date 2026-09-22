@@ -344,17 +344,44 @@ h1, h2, h3, h4, h5, h6 {
 .stagger-4 { transition-delay: 0.32s; }
 .stagger-5 { transition-delay: 0.40s; }
 
-/* Reduced Motion Accessibility */
-@media (prefers-reduced-motion: reduce) {
-  *, ::before, ::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-  .reveal-on-scroll, .reveal-slide-left, .reveal-slide-right {
-    opacity: 1 !important;
-    transform: none !important;
-  }
+/* Google Material Symbols Font & Sizing */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
 }
+
+.icon-xs { font-size: 14px !important; }
+.icon-sm { font-size: 16px !important; }
+.icon-md { font-size: 20px !important; }
+.icon-lg { font-size: 24px !important; }
+.icon-xl { font-size: 32px !important; }
+.icon-xxl { font-size: 48px !important; }
+
+/* Strict Theme & Status Color Utilities */
+.text-primary { color: var(--c-royal-blue) !important; }
+.text-dark { color: var(--c-blue-dark) !important; }
+.text-accent { color: var(--c-gold) !important; }
+.text-success { color: #059669 !important; }
+.text-warning { color: #d97706 !important; }
+.text-danger { color: #dc2626 !important; }
+.text-muted { color: var(--c-text-muted) !important; }
+
+.bg-primary-light { background-color: var(--c-royal-blue-light) !important; }
+.bg-success-light { background-color: #ecfdf5 !important; }
+.bg-warning-light { background-color: #fffbeb !important; }
+.bg-danger-light { background-color: #fef2f2 !important; }
+
 

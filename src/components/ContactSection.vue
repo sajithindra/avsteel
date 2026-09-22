@@ -117,7 +117,7 @@ const copyToClipboard = (text: string, label: string) => {
   <section id="contact" class="contact-section">
     <div class="container">
       <div class="section-header text-center reveal-on-scroll">
-        <span class="badge badge-accent">⚡ 24-Hour Quotation Turnaround</span>
+        <span class="badge badge-accent"><span class="material-symbols-outlined icon-xs">bolt</span> 24-Hour Quotation Turnaround</span>
         <h2>Ready to Increase Your Detailing Capacity?</h2>
         <p>Submit your project requirements today or contact our engineering team directly.</p>
       </div>
@@ -212,7 +212,7 @@ const copyToClipboard = (text: string, label: string) => {
         <div class="contact-form-box ava-card reveal-on-scroll stagger-2">
           <Transition name="fade-slide" mode="out-in">
             <div v-if="isSubmitted" class="success-message" key="success">
-              <div class="success-icon">✓</div>
+              <div class="success-icon"><span class="material-symbols-outlined icon-lg text-success">check_circle</span></div>
               <h4>Quote Inquiry Sent</h4>
               <p>Thank you, {{ form.name }}. Your quote request has been routed to <strong>sales@avassds.com</strong>. Our engineering team will review your project requirements and get in touch shortly.</p>
               <button class="btn btn-outline btn-sm" @click="resetForm">Send Another Inquiry</button>

@@ -1,3 +1,9 @@
+// Suppress Lit dev mode console warning
+if (typeof window !== 'undefined') {
+  ;(window as any).litDisableConsoleWarnings = true
+  ;(globalThis as any).litDisableConsoleWarnings = true
+}
+
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import '@google/model-viewer'

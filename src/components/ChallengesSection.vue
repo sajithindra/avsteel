@@ -57,7 +57,7 @@ const selectChallenge = (id: string) => {
                 <!-- Problem Card -->
                 <div class="showcase-box problem-box">
                   <div class="box-header">
-                    <span class="box-icon text-amber">⚠️</span>
+                    <span class="material-symbols-outlined box-icon text-warning icon-sm">warning</span>
                     <span class="box-title">Fabrication Bottleneck</span>
                   </div>
                   <p class="box-desc">{{ activeItem.problem }}</p>
@@ -66,7 +66,7 @@ const selectChallenge = (id: string) => {
                 <!-- Solution Card -->
                 <div class="showcase-box solution-box">
                   <div class="box-header">
-                    <span class="box-icon text-emerald">✓</span>
+                    <span class="material-symbols-outlined box-icon text-success icon-sm">check_circle</span>
                     <span class="box-title">AVA Engineering Solution</span>
                   </div>
                   <p class="box-desc">{{ activeItem.solution }}</p>

@@ -1,32 +1,42 @@
 <script setup lang="ts">
 import { TERMS_AND_CONDITIONS, COMPANY_INFO } from '../data/companyData'
-import Navbar from '../components/Navbar.vue'
-import Footer from '../components/Footer.vue'
 </script>
 
 <template>
-  <Navbar />
   <main class="legal-page">
     <div class="legal-hero">
       <div class="container">
-        <span class="badge badge-hero">Legal & Operating Framework</span>
-        <h1 class="legal-title">Terms & Conditions</h1>
+        <span class="badge badge-hero">Legal &amp; Operating Framework</span>
+        <h1 class="legal-title">Terms &amp; Conditions</h1>
         <p class="legal-subtitle">
-          Standard governing terms for project execution, quality assurance, revisions, and commercial deliverables at {{ COMPANY_INFO.name }}.
+          Effective Date: {{ TERMS_AND_CONDITIONS.effectiveDate }} &mdash; Standard governing terms
+          for project execution, quality assurance, revisions, and commercial deliverables at
+          {{ COMPANY_INFO.name }}.
         </p>
       </div>
     </div>
 
     <div class="container">
       <div class="legal-content">
-        <div v-for="item in TERMS_AND_CONDITIONS" :key="item.num" class="legal-section-box">
-          <h2 class="section-title">{{ item.num }}. {{ item.title }}</h2>
-          <p class="section-text">{{ item.content }}</p>
+        <div
+          v-for="sec in TERMS_AND_CONDITIONS.sections"
+          :key="sec.num"
+          class="legal-section-box"
+        >
+          <h2 class="section-title">{{ sec.num }}. {{ sec.title }}</h2>
+          <p class="section-text">{{ sec.content }}</p>
+          <ul v-if="sec.items" class="section-list">
+            <li v-for="(item, i) in sec.items" :key="i">{{ item }}</li>
+          </ul>
+          <p v-if="sec.footer" class="section-footer">{{ sec.footer }}</p>
         </div>
       </div>
+
+      <p class="copyright-note">
+        &copy; 2026 AVA Structural Steel Detailing Services LLP. All Rights Reserved.
+      </p>
     </div>
   </main>
-  <Footer />
 </template>
 
 <style scoped>
@@ -83,6 +93,35 @@ import Footer from '../components/Footer.vue'
   font-size: 0.98rem;
   color: var(--c-text-dark);
   line-height: 1.65;
-  margin: 0;
+  margin: 0 0 0.5rem 0;
+}
+
+.section-list {
+  margin: 0.5rem 0 0.5rem 1.25rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.section-list li {
+  font-size: 0.97rem;
+  color: var(--c-text-dark);
+  line-height: 1.6;
+}
+
+.section-footer {
+  font-size: 0.95rem;
+  color: var(--c-text-muted);
+  margin: 0.75rem 0 0 0;
+  font-style: italic;
+}
+
+.copyright-note {
+  max-width: 900px;
+  margin: 2.5rem auto 0 auto;
+  text-align: center;
+  font-size: 0.88rem;
+  color: var(--c-text-muted);
 }
 </style>

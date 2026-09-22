@@ -1,699 +1,910 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuthStore, type UserRole } from '../stores/auth'
+import { ref, computed, watch, onUnmounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
+import { useProjectStore } from '../modules/project/stores/projectStore'
+import { useCommunicationStore } from '../modules/communication/stores/communicationStore'
+import { useReleasesStore } from '../modules/releases/stores/releasesStore'
+import { useAuditStore } from '../core/audit/auditStore'
+import type { ProjectProfile } from '../types/portal'
+
+// Module Components
+import ProjectList from '../modules/project/components/ProjectList.vue'
+import ProjectProfileHeader from '../modules/project/components/ProjectProfileHeader.vue'
+import ProjectDrawingRegister from '../modules/project/components/ProjectDrawingRegister.vue'
+import ProjectStandardsSignoff from '../modules/project/components/ProjectStandardsSignoff.vue'
+import RequestForInformationList from '../modules/communication/components/RequestForInformationList.vue'
+import DrawingClarificationList from '../modules/communication/components/DrawingClarificationList.vue'
+import BackFromApprovalCommentsRegister from '../modules/communication/components/BackFromApprovalCommentsRegister.vue'
+import ApprovalSubmittalList from '../modules/releases/components/ApprovalSubmittalList.vue'
+import ShopFabricationReleaseList from '../modules/releases/components/ShopFabricationReleaseList.vue'
+import FieldErectionReleaseList from '../modules/releases/components/FieldErectionReleaseList.vue'
+import ProjectActivityLogFeed from '../modules/project/components/ProjectActivityLogFeed.vue'
+import StaffList from '../modules/staff/components/StaffList.vue'
+import CustomerList from '../modules/customer/components/CustomerList.vue'
+import CustomerProjectDashboard from '../modules/project/components/CustomerProjectDashboard.vue'
+import ProjectTimeline from '../modules/project/components/ProjectTimeline.vue'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
+const projectStore = useProjectStore()
+const communicationStore = useCommunicationStore()
+const releasesStore = useReleasesStore()
+const auditStore = useAuditStore()
 
-const roles: { key: UserRole; label: string; icon: string }[] = [
-  { key: 'user', label: 'User (Client)', icon: '👤' },
-  { key: 'admin', label: 'Admin', icon: '⚙️' },
-  { key: 'ceo', label: 'CEO', icon: '💼' },
-  { key: 'engineer', label: 'Engineer', icon: '🏗️' },
-  { key: 'tech lead', label: 'Tech Lead', icon: '📐' }
-]
+// Sidenav & Navigation State
+const activeNav = ref<'projects' | 'staff' | 'customers'>('projects')
+const projectSubTab = ref<
+  | 'drawings'
+  | 'standards'
+  | 'rfis'
+  | 'clarifications'
+  | 'bfa_comments'
+  | 'submittals'
+  | 'shop_releases'
+  | 'field_releases'
+  | 'activity'
+>('drawings')
+const isSidebarOpen = ref(false)
+const isTimelineModalOpen = ref(false)
 
-const selectedRole = computed(() => authStore.currentRole)
+// Active Project State
+const activeProject = computed(() => projectStore.activeProject)
 
-const switchRole = async (role: UserRole) => {
-  await authStore.updateUserRole(role)
+const pendingRfisCount = computed(() => {
+  return communicationStore.rfis.filter(
+    (r) => r.status === 'Awaiting Client Response' || r.status === 'Submitted to Client'
+  ).length
+})
+
+// Consolidated Error Management
+const activeErrorMessage = computed(() => {
+  return projectStore.error || communicationStore.error || releasesStore.error || ''
+})
+
+const dismissError = () => {
+  projectStore.error = ''
+  communicationStore.error = ''
+  releasesStore.error = ''
 }
+
+const navigateTo = (path: string) => {
+  isSidebarOpen.value = false
+  if (route.path !== path) {
+    router.push(path)
+  }
+}
+
+// Sync activeNav with current route path
+watch(
+  () => route.path,
+  (path) => {
+    if (path === '/dashboard/staff') {
+      activeNav.value = 'staff'
+    } else if (path === '/dashboard/customers') {
+      activeNav.value = 'customers'
+    } else {
+      activeNav.value = 'projects'
+    }
+  },
+  { immediate: true }
+)
+
+const handleSelectProject = (project: ProjectProfile, pushRoute: boolean = true) => {
+  projectStore.selectActiveProject(project)
+  communicationStore.initProjectCommunication(project.id)
+  releasesStore.initProjectReleases(project.id)
+  auditStore.initProjectAuditListener(project.id)
+  projectSubTab.value = 'drawings'
+
+  if (pushRoute && route.params.projectId !== project.id) {
+    router.push({ name: 'project-detail', params: { projectId: project.id } })
+  }
+}
+
+const handleBackToProjects = (pushRoute: boolean = true) => {
+  projectStore.selectActiveProject(null)
+  communicationStore.stopProjectCommunication()
+  releasesStore.stopProjectReleases()
+  auditStore.stopProjectAuditListener()
+
+  if (pushRoute && (route.name === 'project-detail' || route.path.startsWith('/dashboard/project'))) {
+    router.push({ name: 'dashboard' })
+  }
+}
+
+// Automatically select active project for customer accounts upon viewing dashboard
+watch(
+  () => [projectStore.visibleProjects, authStore.isClientStaff] as const,
+  ([projects, isClient]) => {
+    if (isClient && projects.length > 0 && !projectStore.activeProject) {
+      const first = projects[0]
+      if (first) {
+        handleSelectProject(first, false)
+      }
+    }
+  },
+  { immediate: true }
+)
+
+// Watch route params for deep-linking & auto hydration
+watch(
+  () => route.params.projectId,
+  async (newId) => {
+    if (newId && typeof newId === 'string') {
+      if (projectStore.activeProject?.id !== newId) {
+        const p = await projectStore.selectActiveProjectById(newId)
+        if (p) {
+          communicationStore.initProjectCommunication(p.id)
+          releasesStore.initProjectReleases(p.id)
+          auditStore.initProjectAuditListener(p.id)
+        }
+      }
+    } else if (!newId && projectStore.activeProject && !authStore.isClientStaff) {
+      handleBackToProjects(false)
+    }
+  },
+  { immediate: true }
+)
+
+// Clean lifecycle listener cleanup to prevent memory leaks
+onUnmounted(() => {
+  communicationStore.stopProjectCommunication()
+  releasesStore.stopProjectReleases()
+  auditStore.stopProjectAuditListener()
+})
 
 const handleSignOut = async () => {
   await authStore.logout()
   router.push('/signin')
 }
-
-// Sample dynamic project data for user view
-const clientProjects = ref([
-  { id: 'PRJ-2026-001', name: 'Metro Medical Center Tower B', status: 'In Detailing', completion: 75, date: '2026-08-15' },
-  { id: 'PRJ-2026-004', name: 'Apex Industrial Logistics Park', status: 'PE Stamping Approved', completion: 100, date: '2026-07-28' },
-  { id: 'PRJ-2026-009', name: 'Riverfront Commercial Plaza', status: '3D BIM Review', completion: 45, date: '2026-09-01' }
-])
-
-// Sample team users for admin view
-const teamUsers = ref([
-  { uid: 'usr_001', name: 'Alex Johnson', email: 'alex@avasteel.com', phone: '+1 555-019-8821', role: 'admin' },
-  { uid: 'usr_002', name: 'Sarah Miller', email: 'sarah.m@avasteel.com', phone: '+1 555-019-3342', role: 'ceo' },
-  { uid: 'usr_003', name: 'David Vance', email: 'david.v@avasteel.com', phone: '+1 555-019-4491', role: 'tech lead' },
-  { uid: 'usr_004', name: 'Marcus Steel', email: 'marcus@avasteel.com', phone: '+1 555-019-7710', role: 'engineer' }
-])
-
-// Sample engineering tasks
-const engineeringTasks = ref([
-  { id: 'TSK-101', title: 'Moment Connection Design - Grid C4-C7', priority: 'High', status: 'In Review' },
-  { id: 'TSK-104', title: 'Truss Node Weld Calculations (AISC 360-22)', priority: 'Critical', status: 'Approved' },
-  { id: 'TSK-108', title: 'Anchor Bolt Layout Plan - Substructure', priority: 'Medium', status: 'Drafting' }
-])
-
-// Sample stamping queue for tech lead
-const stampingQueue = ref([
-  { id: 'STMP-801', project: 'Metro Medical Center', engineer: 'Marcus Steel', type: 'SE Seal (California)', status: 'Pending Review' },
-  { id: 'STMP-805', project: 'Apex Industrial Park', engineer: 'David Vance', type: 'PE Seal (Texas)', status: 'Approved & Stamped' }
-])
 </script>
 
 <template>
-  <div class="dashboard-page-container">
-    <div class="container">
-      <!-- User Header Banner -->
-      <div class="dashboard-header ava-card">
-        <div class="user-profile-summary">
-          <div class="avatar-circle">
-            {{ authStore.profile?.name?.charAt(0)?.toUpperCase() || authStore.user?.email?.charAt(0)?.toUpperCase() || 'U' }}
-          </div>
-          <div class="user-details">
-            <div class="user-title-row">
-              <h1>Welcome, {{ authStore.profile?.name || authStore.user?.displayName || 'User' }}!</h1>
-              <span class="role-badge" :data-role="selectedRole">{{ selectedRole.toUpperCase() }}</span>
-            </div>
-            <div class="meta-chips">
-              <span class="meta-chip">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                  <polyline points="22,6 12,13 2,6"/>
-                </svg>
-                {{ authStore.profile?.email || authStore.user?.email }}
-              </span>
-              <span class="meta-chip" v-if="authStore.profile?.phoneNumber">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-                </svg>
-                {{ authStore.profile?.phoneNumber }}
-              </span>
-            </div>
+  <div class="portal-layout">
+    <!-- Sidenav Bar (Dedicated Primary Sidebar Navigation) -->
+    <aside class="portal-sidenav" :class="{ 'is-open': isSidebarOpen }">
+      <div class="sidenav-header">
+        <div class="brand-badge-group">
+          <span class="logo-box">AVA</span>
+          <div class="brand-meta">
+            <span class="brand-title">AVA Steel Portal</span>
+            <span class="role-tag" :data-role="authStore.currentRole">
+              {{ authStore.currentRole.replace(/_/g, ' ').toUpperCase() }}
+            </span>
           </div>
         </div>
-
-        <div class="header-actions">
-          <button class="btn btn-outline btn-sm" @click="handleSignOut">
-            Sign Out
-          </button>
-        </div>
+        <button class="mobile-close-btn" @click="isSidebarOpen = false" aria-label="Close menu">&times;</button>
       </div>
 
-      <!-- Role Selector Bar -->
-      <div class="role-selector-card ava-card">
-        <div class="selector-title">
-          <span class="pulse-indicator"></span>
-          <span>Switch Dashboard Role View:</span>
+      <nav class="sidenav-nav">
+        <!-- 1. Projects -->
+        <button
+          type="button"
+          class="sidenav-link"
+          :class="{ active: activeNav === 'projects' }"
+          @click="navigateTo('/dashboard')"
+        >
+          <span class="material-symbols-outlined nav-icon">folder</span>
+          <span>Projects</span>
+        </button>
+
+        <!-- 2. Staff (Admin / Head / PM Only) -->
+        <button
+          v-if="authStore.canManageStaff"
+          type="button"
+          class="sidenav-link"
+          :class="{ active: activeNav === 'staff' }"
+          @click="navigateTo('/dashboard/staff')"
+        >
+          <span class="material-symbols-outlined nav-icon">group</span>
+          <span>Staff</span>
+        </button>
+
+        <!-- 3. Customers (Admin / Head / PM Only) -->
+        <button
+          v-if="authStore.canManageStaff"
+          type="button"
+          class="sidenav-link"
+          :class="{ active: activeNav === 'customers' }"
+          @click="navigateTo('/dashboard/customers')"
+        >
+          <span class="material-symbols-outlined nav-icon">corporate_fare</span>
+          <span>Customers</span>
+        </button>
+      </nav>
+
+      <div class="sidenav-footer">
+        <div class="user-brief">
+          <span class="ub-name">{{ authStore.profile?.name || authStore.user?.displayName || 'Active User' }}</span>
+          <span class="ub-email">{{ authStore.user?.email }}</span>
         </div>
-        <div class="role-tabs">
-          <button
-            v-for="r in roles"
-            :key="r.key"
-            class="role-tab-btn"
-            :class="{ active: selectedRole === r.key }"
-            @click="switchRole(r.key)"
-          >
-            <span class="role-icon">{{ r.icon }}</span>
-            <span>{{ r.label }}</span>
-          </button>
+        <button type="button" class="btn btn-outline btn-sm logout-btn" @click="handleSignOut">
+          Sign Out
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Workspace Content -->
+    <main class="portal-main">
+      <!-- Mobile Sidebar Toggle (No appbar for logged-in user) -->
+      <button class="mobile-sidebar-toggle" @click="isSidebarOpen = true" aria-label="Open navigation menu">
+        <span class="material-symbols-outlined icon-sm">menu</span> Navigation
+      </button>
+
+      <!-- Global Error Banner -->
+      <div v-if="activeErrorMessage" class="alert alert-danger global-alert dismissable-alert">
+        <div class="alert-content-group">
+          <span class="material-symbols-outlined alert-icon text-danger">warning</span>
+          <span class="alert-message">{{ activeErrorMessage }}</span>
         </div>
+        <button type="button" class="alert-dismiss-btn" @click="dismissError" aria-label="Dismiss error">&times;</button>
       </div>
 
-      <!-- Dynamic Role-Based Views -->
-      <div class="role-view-content">
-
-        <!-- 1. USER VIEW -->
-        <div v-if="selectedRole === 'user'" class="view-panel">
-          <div class="panel-header">
-            <h2>Client Portal Dashboard</h2>
-            <p>Track your structural steel projects, BIM models, and PE/SE stamping progress.</p>
-          </div>
-
-          <div class="grid-stats">
-            <div class="stat-card ava-card">
-              <div class="stat-num">3</div>
-              <div class="stat-label">Active Projects</div>
-            </div>
-            <div class="stat-card ava-card">
-              <div class="stat-num">100%</div>
-              <div class="stat-label">AISC Code Compliance</div>
-            </div>
-            <div class="stat-card ava-card">
-              <div class="stat-num">2</div>
-              <div class="stat-label">Stamping Clearances Ready</div>
+      <!-- Main Portal Body Views -->
+      <div class="portal-content-body">
+        <!-- ============================================== -->
+        <!-- VIEW 1: PROJECTS WORKSPACE                     -->
+        <!-- ============================================== -->
+        <section v-if="activeNav === 'projects'" class="portal-section">
+          <!-- State A: Client with no projects assigned yet -->
+          <div v-if="authStore.isClientStaff && projectStore.visibleProjects.length === 0" class="customer-empty-welcome ava-card">
+            <div class="cew-icon"><span class="material-symbols-outlined icon-xxl text-primary">corporate_fare</span></div>
+            <h2>Welcome to AVA Steel Client Portal, {{ authStore.profile?.name || authStore.user?.displayName || 'Client Partner' }}</h2>
+            <p class="cew-text">
+              Your client portal account is active and verified. Your Project Manager or Project Head will assign your structural steel detailing projects shortly.
+            </p>
+            <div class="cew-specs">
+              <span class="cew-badge">SDS/2 & Tekla 3D Detailing</span>
+              <span class="cew-badge">AISC 360-22 Governing Standards</span>
+              <span class="cew-badge">Automated CNC & Machine Release Tracking</span>
             </div>
           </div>
 
-          <div class="section-card ava-card">
-            <h3>Project Status Overview</h3>
-            <div class="table-responsive">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Project ID</th>
-                    <th>Project Name</th>
-                    <th>Status</th>
-                    <th>Completion</th>
-                    <th>Target Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="p in clientProjects" :key="p.id">
-                    <td class="font-mono">{{ p.id }}</td>
-                    <td class="font-bold">{{ p.name }}</td>
-                    <td><span class="table-badge">{{ p.status }}</span></td>
-                    <td>
-                      <div class="progress-bar-container">
-                        <div class="progress-fill" :style="{ width: p.completion + '%' }"></div>
-                        <span class="progress-text">{{ p.completion }}%</span>
-                      </div>
-                    </td>
-                    <td>{{ p.date }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- 2. ADMIN VIEW -->
-        <div v-else-if="selectedRole === 'admin'" class="view-panel">
-          <div class="panel-header">
-            <h2>System Administration & Access Control</h2>
-            <p>Manage registered user accounts, assign role permissions, and view system health.</p>
+          <!-- State B: Staff view with no project selected (Projects Registry) -->
+          <div v-else-if="!activeProject && !authStore.isClientStaff">
+            <ProjectList @select-project="handleSelectProject" />
           </div>
 
-          <div class="grid-stats">
-            <div class="stat-card ava-card">
-              <div class="stat-num">99.98%</div>
-              <div class="stat-label">System Uptime</div>
-            </div>
-            <div class="stat-card ava-card">
-              <div class="stat-num">14 ms</div>
-              <div class="stat-label">API Latency</div>
-            </div>
-            <div class="stat-card ava-card">
-              <div class="stat-num">Active</div>
-              <div class="stat-label">Firestore Database (default)</div>
-            </div>
-          </div>
+          <!-- State C: Dedicated Active Project Workspace (Customer or Staff) -->
+          <div v-else-if="activeProject" class="active-project-workspace">
+            <!-- For Customer: Important Details Shown First -->
+            <CustomerProjectDashboard
+              v-if="authStore.isClientStaff"
+              :project="activeProject"
+              :drawings-count="projectStore.activeProjectDrawings.length"
+              :rfis-count="communicationStore.rfis.length"
+              :pending-rfis-count="pendingRfisCount"
+              :clarifications-count="communicationStore.clarifications.length"
+              :transmittals-count="releasesStore.transmittals.length"
+              :releases-count="releasesStore.releasePackages.length"
+              :all-projects="projectStore.visibleProjects"
+              @switch-project="handleSelectProject($event)"
+              @open-timeline="isTimelineModalOpen = true"
+              @jump-tab="projectSubTab = $event as any"
+            />
 
-          <div class="section-card ava-card">
-            <h3>User Roles & Permissions Management</h3>
-            <div class="table-responsive">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>User ID</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th>Assigned Role</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-if="authStore.profile">
-                    <td class="font-mono">{{ authStore.profile.uid.substring(0, 10) }}...</td>
-                    <td class="font-bold">{{ authStore.profile.name }} (You)</td>
-                    <td>{{ authStore.profile.email }}</td>
-                    <td>{{ authStore.profile.phoneNumber }}</td>
-                    <td><span class="table-badge current">{{ authStore.profile.role }}</span></td>
-                  </tr>
-                  <tr v-for="u in teamUsers" :key="u.uid">
-                    <td class="font-mono">{{ u.uid }}</td>
-                    <td class="font-bold">{{ u.name }}</td>
-                    <td>{{ u.email }}</td>
-                    <td>{{ u.phone }}</td>
-                    <td><span class="table-badge">{{ u.role }}</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+            <!-- For Staff: Project Profile Header & Lifecycle Progress -->
+            <template v-else>
+              <div class="back-navigation-bar">
+                <button type="button" class="back-btn" @click="handleBackToProjects()">
+                  &larr; Back to Projects
+                </button>
+              </div>
+              <ProjectProfileHeader :project="activeProject" />
+            </template>
 
-        <!-- 3. CEO VIEW -->
-        <div v-else-if="selectedRole === 'ceo'" class="view-panel">
-          <div class="panel-header">
-            <h2>Executive & Business Analytics</h2>
-            <p>High-level revenue metrics, annual tonnage throughput, and project delivery KPIs.</p>
-          </div>
+            <!-- Project Navigation Tabs -->
+            <div class="project-tabs-nav-bar">
+              <button
+                type="button"
+                class="tab-btn"
+                :class="{ active: projectSubTab === 'drawings' }"
+                @click="projectSubTab = 'drawings'"
+              >
+                <span class="material-symbols-outlined icon-sm">architecture</span>
+                <span>System Drawing Register</span>
+              </button>
+              <button
+                type="button"
+                class="tab-btn"
+                :class="{ active: projectSubTab === 'standards' }"
+                @click="projectSubTab = 'standards'"
+              >
+                <span class="material-symbols-outlined icon-sm">description</span>
+                <span>Detailing Standards</span>
+              </button>
+              <button
+                type="button"
+                class="tab-btn"
+                :class="{ active: projectSubTab === 'rfis' }"
+                @click="projectSubTab = 'rfis'"
+              >
+                <span class="material-symbols-outlined icon-sm">help_outline</span>
+                <span>Requests for Information</span>
+              </button>
+              <button
+                type="button"
+                class="tab-btn"
+                :class="{ active: projectSubTab === 'clarifications' }"
+                @click="projectSubTab = 'clarifications'"
+              >
+                <span class="material-symbols-outlined icon-sm">balance</span>
+                <span>Drawing Clarifications</span>
+              </button>
+              <button
+                type="button"
+                class="tab-btn"
+                :class="{ active: projectSubTab === 'bfa_comments' }"
+                @click="projectSubTab = 'bfa_comments'"
+              >
+                <span class="material-symbols-outlined icon-sm">rate_review</span>
+                <span>Back From Approval Comments</span>
+              </button>
+              <button
+                type="button"
+                class="tab-btn"
+                :class="{ active: projectSubTab === 'submittals' }"
+                @click="projectSubTab = 'submittals'"
+              >
+                <span class="material-symbols-outlined icon-sm">inventory_2</span>
+                <span>Approval Submittals</span>
+              </button>
+              <button
+                type="button"
+                class="tab-btn"
+                :class="{ active: projectSubTab === 'shop_releases' }"
+                @click="projectSubTab = 'shop_releases'"
+              >
+                <span class="material-symbols-outlined icon-sm">precision_manufacturing</span>
+                <span>Shop Releases</span>
+              </button>
+              <button
+                type="button"
+                class="tab-btn"
+                :class="{ active: projectSubTab === 'field_releases' }"
+                @click="projectSubTab = 'field_releases'"
+              >
+                <span class="material-symbols-outlined icon-sm">construction</span>
+                <span>Field Releases</span>
+              </button>
+              <button
+                type="button"
+                class="tab-btn"
+                :class="{ active: projectSubTab === 'activity' }"
+                @click="projectSubTab = 'activity'"
+              >
+                <span class="material-symbols-outlined icon-sm">history</span>
+                <span>Activity Audit Trail</span>
+              </button>
+            </div>
 
-          <div class="grid-stats">
-            <div class="stat-card ava-card">
-              <div class="stat-num">$12.4M</div>
-              <div class="stat-label">Q3 Revenue</div>
-            </div>
-            <div class="stat-card ava-card">
-              <div class="stat-num">48,500 Tons</div>
-              <div class="stat-label">Annual Fabricated Steel</div>
-            </div>
-            <div class="stat-card ava-card">
-              <div class="stat-num">98.6%</div>
-              <div class="stat-label">On-Time Project Delivery</div>
-            </div>
-            <div class="stat-card ava-card">
-              <div class="stat-num">4.9 / 5.0</div>
-              <div class="stat-label">Client Satisfaction</div>
-            </div>
-          </div>
+            <Transition name="tab-fade" mode="out-in">
+              <!-- Tab 1: System Drawing Register -->
+              <div v-if="projectSubTab === 'drawings'" key="drawings" class="tab-pane">
+                <ProjectDrawingRegister :project-id="activeProject.id" />
+              </div>
 
-          <div class="section-card ava-card">
-            <h3>Strategic Objectives & Milestone Progress</h3>
-            <ul class="kpi-list">
-              <li>
-                <div class="kpi-info">
-                  <strong>Expand SDS/2 3D Model Automation</strong>
-                  <span>Target: Q4 2026 — Progress: 82% complete</span>
-                </div>
-                <div class="progress-bar-container width-200">
-                  <div class="progress-fill" style="width: 82%;"></div>
-                </div>
-              </li>
-              <li>
-                <div class="kpi-info">
-                  <strong>50-State PE/SE Engineering License Coverage</strong>
-                  <span>Target: Q3 2026 — Progress: 100% complete (Active in all 50 States)</span>
-                </div>
-                <div class="progress-bar-container width-200">
-                  <div class="progress-fill" style="width: 100%;"></div>
-                </div>
-              </li>
-            </ul>
-          </div>
-        </div>
+              <!-- Tab 2: Project Standards Sign-off -->
+              <div v-else-if="projectSubTab === 'standards'" key="standards" class="tab-pane">
+                <ProjectStandardsSignoff :project="activeProject" />
+              </div>
 
-        <!-- 4. ENGINEER VIEW -->
-        <div v-else-if="selectedRole === 'engineer'" class="view-panel">
-          <div class="panel-header">
-            <h2>Structural Engineering & Detailing Workspace</h2>
-            <p>Manage active 3D connection modeling, calculation sheets, and AISC design checks.</p>
-          </div>
+              <!-- Tab 3: Requests for Information -->
+              <div v-else-if="projectSubTab === 'rfis'" key="rfis" class="tab-pane">
+                <RequestForInformationList :project-id="activeProject.id" />
+              </div>
 
-          <div class="grid-stats">
-            <div class="stat-card ava-card">
-              <div class="stat-num">12</div>
-              <div class="stat-label">Active Connection Tasks</div>
-            </div>
-            <div class="stat-card ava-card">
-              <div class="stat-num">AISC 360-22</div>
-              <div class="stat-label">Design Standard</div>
-            </div>
-            <div class="stat-card ava-card">
-              <div class="stat-num">0</div>
-              <div class="stat-label">Overdue RFIs</div>
-            </div>
-          </div>
+              <!-- Tab 4: Drawing Clarifications -->
+              <div v-else-if="projectSubTab === 'clarifications'" key="clarifications" class="tab-pane">
+                <DrawingClarificationList :project-id="activeProject.id" />
+              </div>
 
-          <div class="section-card ava-card">
-            <h3>Active Detailing Tasks</h3>
-            <div class="table-responsive">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Task ID</th>
-                    <th>Task Title</th>
-                    <th>Priority</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="t in engineeringTasks" :key="t.id">
-                    <td class="font-mono">{{ t.id }}</td>
-                    <td class="font-bold">{{ t.title }}</td>
-                    <td>
-                      <span class="priority-tag" :class="t.priority.toLowerCase()">{{ t.priority }}</span>
-                    </td>
-                    <td><span class="table-badge">{{ t.status }}</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+              <!-- Tab 5: Back From Approval Comments -->
+              <div v-else-if="projectSubTab === 'bfa_comments'" key="bfa_comments" class="tab-pane">
+                <BackFromApprovalCommentsRegister :project-id="activeProject.id" />
+              </div>
 
-        <!-- 5. TECH LEAD VIEW -->
-        <div v-else-if="selectedRole === 'tech lead'" class="view-panel">
-          <div class="panel-header">
-            <h2>Technical Lead & Engineering Approval Portal</h2>
-            <p>Oversee PE/SE professional stamping queue, quality assurance, and code compliance.</p>
-          </div>
+              <!-- Tab 6: Approval Submittals -->
+              <div v-else-if="projectSubTab === 'submittals'" key="submittals" class="tab-pane">
+                <ApprovalSubmittalList :project-id="activeProject.id" />
+              </div>
 
-          <div class="grid-stats">
-            <div class="stat-card ava-card">
-              <div class="stat-num">2</div>
-              <div class="stat-label">Stamping Requests Pending</div>
-            </div>
-            <div class="stat-card ava-card">
-              <div class="stat-num">0.12</div>
-              <div class="stat-label">Error Rate per 1K Tons</div>
-            </div>
-            <div class="stat-card ava-card">
-              <div class="stat-num">100%</div>
-              <div class="stat-label">Peer Review Pass Rate</div>
-            </div>
-          </div>
+              <!-- Tab 7: Shop Fabrication Releases -->
+              <div v-else-if="projectSubTab === 'shop_releases'" key="shop_releases" class="tab-pane">
+                <ShopFabricationReleaseList :project-id="activeProject.id" />
+              </div>
 
-          <div class="section-card ava-card">
-            <h3>PE/SE Stamping Approval Queue</h3>
-            <div class="table-responsive">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Approval ID</th>
-                    <th>Project Name</th>
-                    <th>Lead Engineer</th>
-                    <th>Seal Type Required</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="s in stampingQueue" :key="s.id">
-                    <td class="font-mono">{{ s.id }}</td>
-                    <td class="font-bold">{{ s.project }}</td>
-                    <td>{{ s.engineer }}</td>
-                    <td>{{ s.type }}</td>
-                    <td><span class="table-badge current">{{ s.status }}</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+              <!-- Tab 8: Field Erection Releases -->
+              <div v-else-if="projectSubTab === 'field_releases'" key="field_releases" class="tab-pane">
+                <FieldErectionReleaseList :project-id="activeProject.id" />
+              </div>
 
+              <!-- Tab 9: Project Activity Audit Trail -->
+              <div v-else-if="projectSubTab === 'activity'" key="activity" class="tab-pane">
+                <ProjectActivityLogFeed />
+              </div>
+            </Transition>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- VIEW 2: USER & STAFF MANAGEMENT                -->
+        <!-- ============================================== -->
+        <section v-else-if="activeNav === 'staff'" class="portal-section">
+          <StaffList />
+        </section>
+
+        <!-- ============================================== -->
+        <!-- VIEW 3: CUSTOMER & FABRICATOR DIRECTORY        -->
+        <!-- ============================================== -->
+        <section v-else-if="activeNav === 'customers'" class="portal-section">
+          <CustomerList />
+        </section>
       </div>
-    </div>
+
+      <!-- Dedicated Dashboard Footer -->
+      <footer class="portal-footer">
+        <div class="portal-footer-inner">
+          <div class="portal-footer-left">
+            <span class="p-dot"></span>
+            <span>&copy; {{ new Date().getFullYear() }} AVA Steel Detailing Portal &bull; Enterprise Secure Cloud</span>
+          </div>
+          <div class="portal-footer-credits">
+            Imagined by <span class="credit-highlight">Sajithindra</span> &bull; Developed by <span class="credit-highlight">Survmonx LLP</span>
+          </div>
+        </div>
+      </footer>
+    </main>
+
+    <!-- Project Milestone Timeline Modal -->
+    <ProjectTimeline
+      v-if="isTimelineModalOpen && activeProject"
+      :project="activeProject"
+      @close="isTimelineModalOpen = false"
+    />
   </div>
 </template>
 
 <style scoped>
-.dashboard-page-container {
-  padding: 2.5rem 0 5rem 0;
+.portal-layout {
+  display: flex;
+  min-height: 100vh;
   background-color: var(--c-bg);
-  min-height: 85vh;
+  width: 100%;
 }
 
-.dashboard-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  padding: 1.75rem 2rem;
-  flex-wrap: wrap;
-  gap: 1.5rem;
-}
-
-.user-profile-summary {
-  display: flex;
-  align-items: center;
-  gap: 1.25rem;
-}
-
-.avatar-circle {
-  width: 58px;
-  height: 58px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--c-royal-blue) 0%, var(--c-royal-blue-accent) 100%);
-  color: #ffffff;
-  font-size: 1.6rem;
-  font-family: var(--font-heading);
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px rgba(21, 65, 148, 0.25);
-}
-
-.user-title-row {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  margin-bottom: 0.35rem;
-}
-
-.user-title-row h1 {
-  font-size: 1.45rem;
-  color: var(--c-blue-dark);
-}
-
-.role-badge {
-  background: var(--c-royal-blue);
-  color: #ffffff;
-  font-size: 0.72rem;
-  font-weight: 800;
-  padding: 0.25rem 0.65rem;
-  border-radius: 6px;
-  letter-spacing: 0.06em;
-}
-
-.role-badge[data-role="admin"] { background: #7c3aed; }
-.role-badge[data-role="ceo"] { background: #d97706; }
-.role-badge[data-role="engineer"] { background: #2563eb; }
-.role-badge[data-role="tech lead"] { background: #059669; }
-
-.meta-chips {
-  display: flex;
-  gap: 1.25rem;
-  flex-wrap: wrap;
-}
-
-.meta-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.88rem;
-  color: var(--c-text-muted);
-}
-
-.role-selector-card {
-  margin-bottom: 2rem;
-  padding: 1.25rem 1.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem;
-  background: var(--c-surface);
-}
-
-.selector-title {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-weight: 700;
-  color: var(--c-blue-dark);
-  font-size: 0.95rem;
-}
-
-.pulse-indicator {
-  width: 8px;
-  height: 8px;
-  background-color: #10b981;
-  border-radius: 50%;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
-}
-
-.role-tabs {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.role-tab-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.5rem 0.9rem;
-  border-radius: 8px;
-  border: 1px solid var(--c-border);
-  background: var(--c-bg);
-  color: var(--c-text-dark);
-  font-size: 0.88rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.role-tab-btn:hover {
-  background: var(--c-royal-blue-light);
-  border-color: var(--c-royal-blue-border);
-}
-
-.role-tab-btn.active {
-  background: var(--c-royal-blue);
-  color: #ffffff;
-  border-color: var(--c-royal-blue);
-  box-shadow: 0 4px 10px rgba(21, 65, 148, 0.2);
-}
-
-.view-panel {
+/* Sidenav */
+.portal-sidenav {
+  width: 280px;
+  min-width: 280px;
+  background-color: #ffffff;
+  border-right: 1px solid var(--c-border);
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
+  justify-content: space-between;
+  padding: 1.5rem 1.2rem;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 100;
+  box-shadow: 2px 0 10px rgba(15, 41, 66, 0.04);
 }
 
-.panel-header h2 {
-  font-size: 1.5rem;
-  margin-bottom: 0.35rem;
-}
-
-.panel-header p {
-  color: var(--c-text-muted);
-  font-size: 0.95rem;
-}
-
-.grid-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1rem));
-  gap: 1.25rem;
-}
-
-.stat-card {
-  text-align: center;
-  padding: 1.5rem;
-}
-
-.stat-num {
-  font-family: var(--font-heading);
-  font-size: 2rem;
-  font-weight: 800;
-  color: var(--c-royal-blue);
-  margin-bottom: 0.25rem;
-}
-
-.stat-label {
-  font-size: 0.85rem;
-  color: var(--c-text-muted);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.section-card {
-  padding: 1.75rem;
-}
-
-.section-card h3 {
-  font-size: 1.2rem;
-  margin-bottom: 1.25rem;
-}
-
-.table-responsive {
-  width: 100%;
-  overflow-x: auto;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-  font-size: 0.92rem;
-}
-
-.data-table th {
-  background: var(--c-bg);
-  padding: 0.85rem 1rem;
-  color: var(--c-text-muted);
-  font-weight: 700;
-  text-transform: uppercase;
-  font-size: 0.78rem;
-  letter-spacing: 0.05em;
-  border-bottom: 2px solid var(--c-border);
-}
-
-.data-table td {
-  padding: 0.9rem 1rem;
+.sidenav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 1.25rem;
   border-bottom: 1px solid var(--c-border);
-  color: var(--c-text-dark);
+  margin-bottom: 1.5rem;
 }
 
-.font-mono {
-  font-family: monospace;
+.brand-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
-.font-bold {
-  font-weight: 700;
-}
-
-.table-badge {
-  display: inline-block;
-  padding: 0.2rem 0.6rem;
+.logo-box {
+  background: var(--c-royal-blue);
+  color: #ffffff;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 1.05rem;
+  padding: 0.35rem 0.65rem;
   border-radius: 6px;
-  font-size: 0.78rem;
+  border: 1px solid var(--c-royal-blue-accent);
+}
+
+.brand-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-title {
+  font-family: var(--font-heading);
   font-weight: 700;
-  background: #e0f2fe;
+  font-size: 1.05rem;
+  color: var(--c-blue-dark);
+  line-height: 1.1;
+}
+
+.role-tag {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: #0369a1;
 }
 
-.table-badge.current {
-  background: #dcfce7;
-  color: #15803d;
+.mobile-close-btn {
+  display: none;
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: var(--c-text-muted);
 }
 
-.priority-tag {
-  font-size: 0.75rem;
-  font-weight: 800;
-  padding: 0.2rem 0.55rem;
-  border-radius: 4px;
-  text-transform: uppercase;
+.sidenav-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  flex: 1;
+  overflow-y: auto;
 }
 
-.priority-tag.high { background: #ffedd5; color: #c2410c; }
-.priority-tag.critical { background: #fee2e2; color: #b91c1c; }
-.priority-tag.medium { background: #fef9c3; color: #a16207; }
-
-.progress-bar-container {
-  position: relative;
-  height: 18px;
-  background: #e2e8f0;
-  border-radius: 9px;
-  overflow: hidden;
+.sidenav-link {
   display: flex;
   align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.8rem 1rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--c-text-dark);
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition-fast);
 }
 
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--c-royal-blue) 0%, var(--c-royal-blue-accent) 100%);
-  border-radius: 9px;
+.nav-icon {
+  font-size: 1.15rem;
 }
 
-.progress-text {
-  position: absolute;
-  right: 8px;
-  font-size: 0.72rem;
+.sidenav-link:hover {
+  background-color: var(--c-royal-blue-light);
+  color: var(--c-royal-blue);
+}
+
+.sidenav-link.active {
+  background-color: var(--c-royal-blue);
+  color: #ffffff;
   font-weight: 700;
+  box-shadow: 0 4px 12px rgba(21, 65, 148, 0.2);
+}
+
+.sidenav-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--c-border);
+}
+
+.user-brief {
+  display: flex;
+  flex-direction: column;
+}
+
+.ub-name {
+  font-weight: 700;
+  font-size: 0.9rem;
   color: var(--c-blue-dark);
 }
 
-.width-200 {
-  width: 200px;
+.ub-email {
+  font-size: 0.78rem;
+  color: var(--c-text-muted);
 }
 
-.kpi-list {
-  list-style: none;
+.logout-btn {
+  width: 100%;
+}
+
+/* Main Content Area */
+.portal-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 100vh;
+}
+
+.mobile-sidebar-toggle {
+  display: none;
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 90;
+  background: #ffffff;
+  border: 1px solid var(--c-border);
+  box-shadow: 0 2px 8px rgba(15, 41, 66, 0.12);
+  padding: 0.45rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--c-blue-dark);
+  cursor: pointer;
+}
+
+@media (max-width: 1024px) {
+  .mobile-sidebar-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+}
+
+/* Customer Empty State */
+.customer-empty-welcome {
+  padding: 3.5rem 2rem;
+  text-align: center;
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  margin-bottom: 2rem;
+  border: 1px dashed var(--c-border);
+}
+
+.cew-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.customer-empty-welcome h2 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--c-blue-dark);
+  margin-bottom: 0.75rem;
+}
+
+.cew-text {
+  font-size: 0.95rem;
+  color: var(--c-text-muted);
+  max-width: 600px;
+  margin: 0 auto 1.5rem auto;
+  line-height: 1.6;
+}
+
+.cew-specs {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.cew-badge {
+  background: var(--c-royal-blue-light);
+  color: var(--c-royal-blue);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.35rem 0.85rem;
+  border-radius: 9999px;
+}
+
+/* Dedicated Dashboard Footer */
+.portal-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--c-border);
+  background: #ffffff;
+  padding: 1.1rem 2rem;
+  font-size: 0.82rem;
+  color: var(--c-text-muted);
+}
+
+.portal-footer-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.portal-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.p-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #10b981;
+}
+
+.portal-footer-credits {
+  font-weight: 500;
+  color: #64748b;
+}
+
+.portal-footer-credits .credit-highlight {
+  color: var(--c-blue-dark);
+  font-weight: 700;
+}
+
+.global-alert {
+  margin: 1rem 2rem 0 2rem;
+}
+
+.alert-success {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 0.88rem;
+}
+
+.alert-danger {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 0.88rem;
+}
+
+.dismissable-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.alert-content-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.alert-dismiss-btn {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: #b91c1c;
+  cursor: pointer;
+  padding: 0 0.25rem;
+  border-radius: 4px;
+}
+
+.alert-dismiss-btn:hover {
+  background: rgba(185, 28, 28, 0.1);
+}
+
+.portal-content-body {
+  padding: 1.75rem 2rem;
+  flex: 1;
+}
+
+.portal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Active Project View */
+.active-project-workspace {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
 }
 
-.kpi-list li {
-  display: flex;
-  justify-content: space-between;
+.back-navigation-bar {
+  margin-bottom: 0.25rem;
+}
+
+.back-btn {
+  background: transparent;
+  border: none;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--c-royal-blue);
+  cursor: pointer;
+  display: inline-flex;
   align-items: center;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--c-border);
-  flex-wrap: wrap;
-  gap: 1rem;
+  gap: 0.35rem;
 }
 
-.kpi-info {
+.back-btn:hover {
+  text-decoration: underline;
+}
+
+.project-tabs-nav-bar {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.5rem;
+  border-bottom: 2px solid var(--c-border);
+  padding-bottom: 0.5rem;
+  overflow-x: auto;
 }
 
-.kpi-info strong {
-  font-size: 1rem;
-  color: var(--c-blue-dark);
-}
-
-.kpi-info span {
-  font-size: 0.85rem;
+.tab-btn {
+  background: transparent;
+  border: none;
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  font-weight: 700;
   color: var(--c-text-muted);
+  padding: 0.55rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.tab-btn:hover {
+  background: var(--c-royal-blue-light);
+  color: var(--c-royal-blue);
+}
+
+.tab-btn.active {
+  background: var(--c-royal-blue);
+  color: #ffffff;
+}
+
+.tab-pane {
+  padding-top: 0.75rem;
+}
+
+.tab-fade-enter-active,
+.tab-fade-leave-active {
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tab-fade-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.tab-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.invalid-feedback {
+  display: block;
+  font-size: 0.8rem;
+  color: #dc2626;
+  margin-top: 0.25rem;
+  font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .portal-sidenav {
+    position: fixed;
+    left: -300px;
+    transition: left var(--transition-normal);
+  }
+
+  .portal-sidenav.is-open {
+    left: 0;
+  }
+
+  .mobile-close-btn {
+    display: block;
+  }
+
+  .mobile-menu-toggle {
+    display: block;
+  }
 }
 </style>

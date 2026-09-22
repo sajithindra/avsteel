@@ -22,4 +22,25 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('three') || id.includes('@google/model-viewer') || id.includes('lit-html') || id.includes('lit-element')) {
+              return 'vendor-3d-engine'
+            }
+            if (id.includes('firebase')) {
+              return 'vendor-firebase'
+            }
+            if (id.includes('vue') || id.includes('pinia')) {
+              return 'vendor-vue'
+            }
+            return 'vendor-common'
+          }
+        }
+      }
+    },
+    chunkSizeWarningLimit: 1200
+  }
 })
